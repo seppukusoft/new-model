@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <br>
+    <title>Polling Predictions</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"> 
+    <html data-theme="light"></html>                 
+    <script src="newdp.js"></script>
+    <script type="text/javascript" src="mapdata.js"></script>		
+    <script  type="text/javascript" src="usmap.js"></script>
+    <style>
+        .red { fill: red; }
+        .blue { fill: blue; }
+        .content, .swing {
+        max-width: 750px;
+        margin: auto;
+        }
+        .map {
+        max-width: 1500px;
+        margin: auto;
+        }
+        a[href="https://simplemaps.com"][title="For evaluation use only."] {
+        display: none !important;
+        }
+        h1, h2, body { 
+            text-align: center;
+            font-family: 'Helvetica', 'sans-serif'  
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="content">
+    <h1>Polling Predictions</h1>
+    
+    <label for="xDropdown">How many days of data?</label>
+    <select id="xDropdown">
+      <option selected="selected" value="15">15</option>
+      <option value="30">30</option>
+      <option value="45">45</option>
+    </select>
+
+    <label for="stateDropdown">Select State: </label>
+    <select id="stateDropdown">
+        <option value="select">--Select--</option>
+    </select>
+    <p id="note">(Note: Data and map may only update after selecting a state.) </p>
+    <h2>Results</h2>
+    <div id="resultsState"></div>
+    <br>
+    <div class="test" id="results">
+        <p id="probability">Win Probability: </p>
+        <p id="voteShare">Popular Vote Estimate: </p>
+        <ul id="electoralVotes"></ul>
+        <h2 id="totalElectoralVotes">Loading...</h2>
+    </div>
+    
+</div>
+
+<div class="map" id="map_grandparent" style="text-align: center;">
+    <div id="map_parent" style="width: 75%; display: inline-block;">
+      <div id="map"></div>
+    </div>
+  </div>
+  <div class="swing">
+  <label for="swingInput">Swing Vote Adjustment (+R, -D):</label>
+  <input type="number" id="swingInput" step="0.1" min="-10" max="10" value="0" />
+  <p>(Note: Any adjustment will only correctly affect the EV count and map colors, not the numbers in the results section or state win probabilities on hover.)</p>
+</div>
+<br>
+</body>
+</html>
+>
