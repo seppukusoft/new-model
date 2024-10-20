@@ -1,426 +1,15 @@
-// Import statements (assuming these are in the HTML file)
-// <script src="https://d3js.org/d3.v7.min.js"></script>
-// <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-
 document.addEventListener("DOMContentLoaded", async function () {
-    // Constants
-    const DATA_URL = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv";
-    const WEIGHTS_URL = "https://raw.githubusercontent.com/seppukusoft/538-bias-marker/main/list.json";
-    const ELECTORAL_VOTES_MAPPING = {
-        "Alabama": 9, "Alaska": 3, "Arizona": 11, "Arkansas": 6, "California": 54, "Colorado": 10,
-        "Connecticut": 7, "Delaware": 3, "District of Columbia": 3, "Florida": 30, "Georgia": 16,
-        "Hawaii": 4, "Idaho": 4, "Illinois": 19, "Indiana": 11, "Iowa": 6, "Kansas": 6,
-        "Kentucky": 8, "Louisiana": 8, "Maine": 2, "Maine CD-1": 1, "Maine CD-2": 1, "Maryland": 10,
-        "Massachusetts": 11, "Michigan": 15, "Minnesota": 10, "Mississippi": 6, "Missouri": 10,
-        "Montana": 4, "Nebraska": 4, "Nebraska CD-2": 1, "Nevada": 6, "New Hampshire": 4,
-        "New Jersey": 14, "New Mexico": 5, "New York": 28, "North Carolina": 16, "North Dakota": 3,
-        "Ohio": 17, "Oklahoma": 7, "Oregon": 8, "Pennsylvania": 19, "Rhode Island": 4,
-        "South Carolina": 9, "South Dakota": 3, "Tennessee": 11, "Texas": 40, "Utah": 6,
-        "Vermont": 3, "Virginia": 13, "Washington": 12, "West Virginia": 4, "Wisconsin": 10, "Wyoming": 3
+    const dataUrl = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv";
+    const weightsUrl = "https://raw.githubusercontent.com/seppukusoft/538-bias-marker/main/list.json";
+    const url = 'https://api.the-odds-api.com/v4/sports/politics_us_presidential_election_winner/odds?regions=us&oddsFormat=decimal&apiKey=2cfedf92432fd57ef9ae34b7091e4d4a';
+    const electoralVotesMapping = {
+      "Alabama": 9, "Alaska": 3, "Arizona": 11, "Arkansas": 6, "California": 54, "Colorado": 10, "Connecticut": 7, "Delaware": 3, "District of Columbia": 3,
+      "Florida": 30, "Georgia": 16, "Hawaii": 4, "Idaho": 4, "Illinois": 19, "Indiana": 11, "Iowa": 6, "Kansas": 6, "Kentucky": 8, "Louisiana": 8, "Maine": 2,
+      "Maine CD-1": 1, "Maine CD-2": 1, "Maryland": 10, "Massachusetts": 11, "Michigan": 15, "Minnesota": 10, "Mississippi": 6, "Missouri": 10, "Montana": 4,
+      "Nebraska": 4, "Nebraska CD-2": 1, "Nevada": 6, "New Hampshire": 4, "New Jersey": 14, "New Mexico": 5, "New York": 28, "North Carolina": 16, "North Dakota": 3,
+      "Ohio": 17, "Oklahoma": 7, "Oregon": 8, "Pennsylvania": 19, "Rhode Island": 4, "South Carolina": 9, "South Dakota": 3, "Tennessee": 11, "Texas": 40,
+      "Utah": 6, "Vermont": 3, "Virginia": 13, "Washington": 12, "West Virginia": 4, "Wisconsin": 10, "Wyoming": 3
     };
-    const EXCLUDED_POLL_IDS = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555];
-
-    // State
-    let data = [];
-    let weights = {};
-    let x = 15; // Default value for x
-    let swingAdjustment = 0;
-    let bettingOdds = null;
-
-    // Function to check if URL is reachable
-    async function checkURL(url) {
-        try {
-            return (await fetch(url, { method: 'HEAD' })).ok;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    // Function to fetch and parse CSV data
-    async function fetchAndParseCSV(url) {
-        const response = await fetch(url);
-        const csvText = await response.text();
-        return Papa.parse(csvText, { header: true, dynamicTyping: true }).data.filter(d => d.state);
-    }
-
-    // Function to fetch pollster weights
-    async function fetchPollsterWeights(url) {
-        const response = await fetch(url);
-        const json = await response.json();
-        return json[0];
-    }
-
-    // Function to fetch betting odds
-    async function fetchBettingOdds() {
-        if (bettingOdds) return bettingOdds;
-
-        const url = 'https://api.the-odds-api.com/v4/sports/politics_us_presidential_election_winner/odds?regions=us&oddsFormat=decimal&apiKey=e789a974466d0cca49769df8a8ff04f6';
-
-        try {
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (data.length > 0 && data[0].bookmakers && data[0].bookmakers.length > 0) {
-                const outcomes = data[0].bookmakers[0].markets[0].outcomes;
-                const kamalaOutcome = outcomes.find(outcome => outcome.name === "Kamala Harris");
-                const trumpOutcome = outcomes.find(outcome => outcome.name === "Donald Trump");
-
-                if (kamalaOutcome && trumpOutcome) {
-                    const kamalaOdds = kamalaOutcome.price;
-                    const trumpOdds = trumpOutcome.price;
-
-                    const kamalaProbability = (1 / kamalaOdds) * 100;
-                    const trumpProbability = (1 / trumpOdds) * 100;
-
-                    bettingOdds = { kamalaProbability, trumpProbability };
-                    return bettingOdds;
-                }
-            }
-            console.error("Betting odds data is missing or undefined.");
-            return null;
-        } catch (error) {
-            console.error('Error fetching or processing betting odds:', error);
-            return null;
-        }
-    }
-
-    // Initialize data and weights
-    async function initializeData() {
-        if (await checkURL(DATA_URL)) {
-            data = await fetchAndParseCSV(DATA_URL);
-            weights = await fetchPollsterWeights(WEIGHTS_URL);
-            bettingOdds = await fetchBettingOdds();
-            return true;
-        }
-        console.error("CSV URL is not reachable");
-        return false;
-    }
-
-    // Main initialization
-    if (await initializeData()) {
-        setMapOdds();
-        populateDropdown(data);
-        displayTotalElectoralVotes(calculateTotalElectoralVotes(data));
-    }
-
-    // Event listeners
-    document.getElementById("xDropdown").addEventListener("change", updateElectoralVotes);
-    document.getElementById("swingInput").addEventListener("input", handleSwingAdjustment);
-
-    // ... (Continued from Part 1)
-
-// Helper function to get weight based on the category (pollster/sponsor)
-function getWeight(name, weights) {
-    if (!name) return 1;
-    if (weights.red.includes(name)) return 0.3;
-    if (weights.leanred.includes(name) || weights.leanblue.includes(name)) return 0.5;
-    if (weights.blue.includes(name)) return 0.3;
-    if (weights.unreliable.includes(name)) return 0.1;
-    if (weights.relmissing.includes(name)) return 1.2;
-    return 1.2;
-}
-
-// Calculate weighted percentages based on pollster, sponsor, and voter type weights
-function calculateWeightedPolls(pollData, weights) {
-    return pollData.map(poll => {
-        const pollsterWeight = getWeight(poll.pollster, weights);
-        const sponsorWeight = getWeight(poll.sponsor, weights);
-        const voterTypeWeight = poll.population && poll.population.toLowerCase() === 'lv' ? 1.5 : 0.5;
-        const finalWeight = Math.min(pollsterWeight, sponsorWeight) * voterTypeWeight;
-        return { ...poll, weightedPct: poll.pct * finalWeight };
-    });
-}
-
-// Filter data based on date range
-function filterByRecentDates(data, daysAgo) {
-    const now = new Date();
-    const cutoffDate = new Date(now.setDate(now.getDate() - daysAgo));
-    return data.filter(d => {
-        const pollDate = new Date(d.end_date);
-        return pollDate >= cutoffDate && pollDate <= now && !EXCLUDED_POLL_IDS.includes(d.poll_id);
-    });
-}
-
-// Calculate win probability using Monte Carlo simulations
-function calculateWinProbability(candidates, iterations = 100000) {
-    if (!bettingOdds) {
-        console.error("Could not retrieve betting odds. Simulation aborted.");
-        return null;
-    }
-
-    const { kamalaProbability, trumpProbability } = bettingOdds;
-    const candidatesWithOdds = candidates.map(candidate => ({
-        ...candidate,
-        bettingOdds: candidate.name === 'Kamala Harris' ? kamalaProbability :
-                     candidate.name === 'Donald Trump' ? trumpProbability :
-                     candidate.percentage
-    }));
-
-    const results = candidatesWithOdds.reduce((acc, { name }) => ({ ...acc, [name]: 0 }), {});
-
-    for (let i = 0; i < iterations; i++) {
-        const randomResults = candidatesWithOdds.map(candidate => ({
-            name: candidate.name,
-            result: candidate.percentage + (Math.random() - 0.45) * candidate.bettingOdds
-        }));
-        const winner = randomResults.reduce((prev, curr) => (curr.result > prev.result ? curr : prev));
-        results[winner.name]++;
-    }
-
-    return Object.fromEntries(
-        Object.entries(results).map(([name, count]) => [name, (count / iterations) * 100])
-    );
-}
-
-// Calculate total electoral votes for all states
-function calculateTotalElectoralVotes(data) {
-    const totalElectoralVotes = {};
-    const filteredData = data.filter(d => !EXCLUDED_POLL_IDS.includes(d.poll_id));
-
-    Object.keys(ELECTORAL_VOTES_MAPPING).forEach(state => {
-        const stateData = filteredData.filter(d => d.state === state);
-        const recentData = filterByRecentDates(stateData, x);
-        const weightedRecentData = calculateWeightedPolls(recentData, weights);
-
-        if (recentData.length > 0) {
-            const candidates = d3.group(weightedRecentData, d => d.candidate_name);
-            let [highestPercentage, secondHighestPercentage] = [-Infinity, -Infinity];
-            let [winningCandidate, runnerUpCandidate] = [null, null];
-
-            candidates.forEach((candidateData, candidateName) => {
-                let percentage = d3.mean(candidateData, d => d.pct);
-                if (candidateName === "Donald Trump") {
-                    percentage += swingAdjustment;
-                }
-                if (percentage > highestPercentage) {
-                    [secondHighestPercentage, runnerUpCandidate] = [highestPercentage, winningCandidate];
-                    [highestPercentage, winningCandidate] = [percentage, candidateName];
-                } else if (percentage > secondHighestPercentage) {
-                    [secondHighestPercentage, runnerUpCandidate] = [percentage, candidateName];
-                }
-            });
-
-            if (winningCandidate && secondHighestPercentage !== -Infinity) {
-                const margin = highestPercentage - secondHighestPercentage;
-                const marginForHarris = winningCandidate === 'Donald Trump' ? -margin : Math.abs(margin);
-                updateStateDisplay(state, marginForHarris, ELECTORAL_VOTES_MAPPING[state]);
-                totalElectoralVotes[winningCandidate] = (totalElectoralVotes[winningCandidate] || 0) + ELECTORAL_VOTES_MAPPING[state];
-            }
-        } else {
-            handleDefaultStateAllocation(state, totalElectoralVotes);
-        }
-    });
-
-    return totalElectoralVotes;
-}
-
-// Helper function to update state display
-function updateStateDisplay(state, margin, electoralVotes) {
-    const stateColor = getStateColor(margin);
-    const abbState = getStateAbbreviation(state);
-    applyColor(abbState, stateColor);
-    changeDesc(abbState, electoralVotes);
-    oddsDesc(abbState, newOdds);
-}
-
-// Helper function to get state color based on margin
-function getStateColor(margin) {
-    if (margin > 8) return "solidD";
-    if (margin > 5) return "likelyD";
-    if (margin > 2) return "leanD";
-    if (margin > 0) return "tiltD";
-    if (margin > -2) return "tiltR";
-    if (margin > -5) return "leanR";
-    if (margin > -8) return "likelyR";
-    return "solidR";
-}
-
-// Helper function to handle default state allocation
-function handleDefaultStateAllocation(state, totalElectoralVotes) {
-    const stateElectoralVotes = ELECTORAL_VOTES_MAPPING[state];
-    const abbState = getStateAbbreviation(state);
-    let stateColor, candidate;
-
-    if (["Colorado", "Connecticut", "District of Columbia", "Hawaii", "Illinois", "Rhode Island", "New Jersey", "New York", "Oregon", "Vermont", "Washington", "Maine", "Maine CD-1", "New Mexico", "Massachusetts", "Delaware", "Maryland", "Nebraska CD-2"].includes(state)) {
-        stateColor = state === "Nebraska CD-2" ? "likelyD" : "solidD";
-        candidate = "Kamala Harris";
-    } else if (["Alabama", "Arkansas", "Alaska", "Idaho", "Iowa", "Indiana", "Kansas", "Kentucky", "Louisiana", "Montana", "North Dakota", "Mississippi", "Missouri", "Maine CD-2", "Oklahoma", "South Carolina", "South Dakota", "Tennessee", "Utah", "West Virginia", "Wyoming"].includes(state)) {
-        stateColor = state === "Alaska" ? "likelyR" : (state === "Maine CD-2" ? "leanR" : "solidR");
-        candidate = "Donald Trump";
-    } else {
-        return; // Skip if not in either list
-    }
-
-    applyColor(abbState, stateColor);
-    changeDesc(abbState, stateElectoralVotes);
-    oddsDesc(abbState, newOdds);
-    totalElectoralVotes[candidate] = (totalElectoralVotes[candidate] || 0) + stateElectoralVotes;
-}
-
-// ... (Continued from Part 2)
-
-// Populate dropdown menus
-function populateDropdown(data) {
-    const dropdown = d3.select("#stateDropdown");
-    const states = [...new Set(data.map(d => d.state).filter(Boolean))];
-    const filteredStates = states.filter(state => {
-        const stateData = data.filter(d => d.state === state);
-        const recentData = filterByRecentDates(stateData, x);
-        return recentData.length >= 20;
-    });
-    
-    filteredStates.sort((a, b) => a.localeCompare(b));
-    
-    dropdown.selectAll("option").remove();
-    dropdown.append("option").attr("value", "select").text("--Select--");
-    filteredStates.forEach(state => {
-        dropdown.append("option").attr("value", state).text(state);
-    });
-    
-    updateResults("select", 1);
-    dropdown.on("change", function() {
-        updateResults(this.value, 1);
-    });
-}
-
-// Set up time span selection dropdown
-function populateTimeDropdown() {
-    d3.select("#xDropdown").on("change", function() {
-        x = parseInt(this.value, 10);
-        const selectedState = document.getElementById("stateDropdown").value;
-        fetchAndUpdateResults(selectedState);
-    });
-}
-
-// Fetch and update results based on new time span
-async function fetchAndUpdateResults(selectedState) {
-    const filteredData = await fetchAndParseCSV(DATA_URL);
-    data = filterByRecentDates(filteredData, x);
-    updateStateDropdown();
-    updateResults(selectedState, 1);
-    setMapOdds();
-    displayTotalElectoralVotes(calculateTotalElectoralVotes(data));
-}
-
-// Update state dropdown based on filtered data
-function updateStateDropdown() {
-    const dropdown = document.getElementById("stateDropdown");
-    dropdown.innerHTML = "<option value=''>--Select--</option>";
-    
-    const pollCounts = countPollsByState(data);
-    const statesWithSufficientPolls = Object.keys(pollCounts).filter(state => pollCounts[state] >= 20);
-    
-    statesWithSufficientPolls.forEach(state => {
-        const option = document.createElement("option");
-        option.value = state;
-        option.text = state;
-        dropdown.appendChild(option);
-    });
-}
-
-// Count polls by state
-function countPollsByState(data) {
-    return data.filter(poll => !EXCLUDED_POLL_IDS.includes(poll.poll_id))
-               .reduce((acc, poll) => {
-                   if (poll.state) {
-                       acc[poll.state] = (acc[poll.state] || 0) + 1;
-                   }
-                   return acc;
-               }, {});
-}
-
-// Update results for a selected state
-async function updateResults(selectedState, num) {
-    let filteredData = data.filter(d => d.state === selectedState && !EXCLUDED_POLL_IDS.includes(d.poll_id));
-    filteredData = filterByRecentDates(filteredData, x).filter(d => 
-        !["joe biden", "robert f. kennedy", "gretchen whitmer", "josh shapiro"].includes(d.candidate_name.toLowerCase())
-    );
-
-    if (filteredData.length === 0) return;
-
-    const odds = await fetchBettingOdds();
-    if (!odds) {
-        console.error("Could not retrieve betting odds.");
-        return;
-    }
-
-    const { kamalaProbability, trumpProbability } = odds;
-    const weightedData = calculateWeightedPolls(filteredData, weights);
-    
-    let candidatesData = Array.from(d3.group(weightedData, d => d.candidate_name), ([name, group]) => ({
-        name, 
-        percentage: d3.mean(group, d => d.weightedPct)
-    })).filter(candidate => candidate.percentage >= 0.15);
-
-    const totalPercentage = d3.sum(candidatesData, d => d.percentage);
-    candidatesData.forEach(candidate => {
-        candidate.percentage = (candidate.percentage / totalPercentage) * 100;
-    });
-
-    const oddsWeight = 0.05;
-    const pollsWeight = 0.95;
-
-    candidatesData = candidatesData.map(candidate => {
-        if (candidate.name === 'Kamala Harris') {
-            return { 
-                ...candidate, 
-                bettingOdds: kamalaProbability,
-                adjustedPercentage: (oddsWeight * kamalaProbability) + (pollsWeight * candidate.percentage)
-            };
-        } else if (candidate.name === 'Donald Trump') {
-            return { 
-                ...candidate, 
-                bettingOdds: trumpProbability,
-                adjustedPercentage: (oddsWeight * trumpProbability) + (pollsWeight * candidate.percentage)
-            };
-        } else {
-            return { 
-                ...candidate, 
-                bettingOdds: candidate.percentage,
-                adjustedPercentage: candidate.percentage
-            };
-        }
-    });
-
-    return num === 1 ? displayText(candidatesData, selectedState) : candidatesData;
-}
-
-// Display text results
-function displayText(candidatesData, selectedState) {
-    const voteShareText = candidatesData.map(candidate => `${candidate.name}: ${candidate.adjustedPercentage.toFixed(2)}%`).join(", ");
-    d3.select("#voteShare").text(`Popular Vote Estimate: ${voteShareText}`);
-
-    const winProbabilities = calculateWinProbability(candidatesData);
-    const probabilityText = Object.entries(winProbabilities)
-        .filter(([_, prob]) => prob > 0.5)
-        .map(([candidate, prob]) => `${candidate}: ${prob.toFixed(2)}%`).join(", ");
-    d3.select("#probability").text(`Win Probability: ${probabilityText}`);
-
-    displayTotalElectoralVotes(calculateTotalElectoralVotes(data));
-    d3.select("#resultsState").text(`Data for: ${selectedState}`);
-    return winProbabilities;
-}
-
-// Display the total electoral votes
-function displayTotalElectoralVotes(totalElectoralVotes) {
-    d3.select("#totalElectoralVotes").text(
-        `EV: ${Object.entries(totalElectoralVotes)
-            .map(([candidate, votes]) => `${candidate}: ${votes}`)
-            .join(", ")}`
-    );
-}
-
-// Handle swing adjustment
-function handleSwingAdjustment() {
-    document.getElementsByClassName("test").innerHTML = "";
-    const swingInput = document.getElementById("swingInput");
-    swingAdjustment = parseFloat(swingInput.value) || 0;
-    displayTotalElectoralVotes(calculateTotalElectoralVotes(data));
-    mapRefresh();
-}
-
-// Helper function to get state abbreviation
-function getStateAbbreviation(stateName) {
     const stateAbbreviations = {
         "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA",
         "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE", "District of Columbia": "DC",
@@ -436,49 +25,417 @@ function getStateAbbreviation(stateName) {
         "Utah": "UT", "Vermont": "VT", "Virginia": "VA", "Washington": "WA",
         "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
     };
-    return stateAbbreviations[stateName];
-}
+    let data = null, weights = null, x = 15; 
+    let swingAdjustment = 0; 
+    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731];
+    let bettingOdds = null;
+    let pollCounts = {};
+    let marginStore = {};
+    let probabilityStore = {};
 
-// Initialize the application
-populateTimeDropdown();
-initializeData();
-// ... (Any other initialization code)solidR": "#d22532", "likelyR": "#ff5865", "leanR": "#ff8b98", "tiltR": "#cf8980",
-        "tiltD": "#949bb3", "leanD": "#90acfc", "likelyD": "#577ccc", "solidD": "#244999"
-    };
-    
-    if (["ME1", "ME2", "NE2"].includes(state)) {
-        simplemaps_usmap_mapdata.locations[state].color = colorMapping[newColor];
-    } else if (state) {
-        simplemaps_usmap_mapdata.state_specific[state].color = colorMapping[newColor];
+    async function fetchPollsterWeights() {
+        if (weights) {
+            return weights;
+        }
+        const response = await fetch(weightsUrl);
+        const json = await response.json();
+        weights = json[0];
+        return json[0];
     }
-}
 
-function mapRefresh() {
-    simplemaps_usmap.refresh();
-}
-
-function changeDesc(state, num) {
-    const target = ["ME1", "ME2", "NE2"].includes(state) ? 
-        simplemaps_usmap_mapdata.locations[state] : 
-        simplemaps_usmap_mapdata.state_specific[state];
+    async function fetchBettingOdds() {
+        if (bettingOdds) {
+            return bettingOdds;
+        }
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data.length > 0 && data[0].bookmakers && data[0].bookmakers.length > 0) {
+                const outcomes = data[0].bookmakers[0].markets[0].outcomes;
+                const harrisOutcome = outcomes.find(outcome => outcome.name === "Kamala Harris");
+                const trumpOutcome = outcomes.find(outcome => outcome.name === "Donald Trump");
+                
+                let harrisProbability = 0;
+                let trumpProbability = 0;
     
-    if (target) {
-        target.description = `${num} Electoral Vote(s)`;
-    }
-}
-
-function oddsDesc(state, hPercent, tPercent) {
-    const target = ["ME1", "ME2", "NE2"].includes(state) ? 
-        simplemaps_usmap_mapdata.locations[state] : 
-        simplemaps_usmap_mapdata.state_specific[state];
+                if (harrisOutcome) {
+                    harrisProbability = (1 / harrisOutcome.price) * 100;
+                }
+                if (trumpOutcome) {
+                    trumpProbability = (1 / trumpOutcome.price) * 100;
+                }
     
-    if (target && !isNaN(hPercent) && !isNaN(tPercent)) {
-        target.description += `<br>Harris: ${hPercent} out of 100<br>Trump: ${tPercent} out of 100`;
+                bettingOdds = { harrisProbability, trumpProbability };
+                return bettingOdds;
+            } 
+        } catch (error) {
+            return null;
+        }
     }
-    mapRefresh();
-}
 
-// Initialize the application
-populateTimeDropdown();
-initializeData();
-// ... (Any other initialization code)
+    async function getAndFilterData(url) {
+        if (data) {
+            return data;
+        }
+        const response = await fetch(url);
+        const csvText = await response.text();
+        let initData = Papa.parse(csvText, { header: true, dynamicTyping: true }).data.filter(d => d.state);
+        const now = new Date();
+        const daysAgo = new Date();
+        daysAgo.setDate(now.getDate() - (x));
+
+        let timeData = initData.filter(d => {
+            const pollDate = new Date(d.end_date); 
+            return pollDate >= daysAgo && pollDate <= now && !excludedPollIds.includes(d.poll_id);
+        });
+        let exData = timeData.filter(d => 
+            d.candidate_name.toLowerCase() !== "joe biden" &&
+            d.candidate_name.toLowerCase() !== "robert f. kennedy" &&
+            d.candidate_name.toLowerCase() !== "gretchen whitmer" &&
+            d.candidate_name.toLowerCase() !== "josh shapiro" &&
+            d.candidate_name.toLowerCase() !== "shiva ayyadurai" &&
+            (!d.sponsor_candidate || d.sponsor_candidate.toLowerCase() !== "donald trump") &&
+            (!d.sponsor_candidate || d.sponsor_candidate.toLowerCase() !== "kamala harris")
+        );
+
+        let filteredData = exData.map(poll => {
+            const pollsterWeight = getWeight(poll.pollster, weights);
+            const sponsorWeight = getWeight(poll.sponsor, weights);
+            let voterTypeWeight = poll.population && poll.population.toLowerCase() === 'lv' ? 1 : 0.5;
+            const sampleSizeWeight = Math.sqrt(poll.sample_size || 1) * 1.25;
+            const finalWeight = Math.min(pollsterWeight, sponsorWeight) * voterTypeWeight * sampleSizeWeight;
+            return { ...poll, weightedPct: poll.pct * finalWeight };
+        });
+
+        filteredData.forEach(poll => {
+            const state = poll.state;
+            if (state) {
+                pollCounts[state] = (pollCounts[state] || 0) + 1;
+            }
+        });
+
+        const { harrisProbability, trumpProbability } = bettingOdds;
+        const oddsWeight = 0.3;
+        const pollsWeight = 0.7; 
+        filteredData = filteredData.map(poll => {
+            let adjustedPct = poll.weightedPct;
+            if (poll.candidate_name === 'Kamala Harris') {
+                adjustedPct = (oddsWeight * harrisProbability) + (pollsWeight * poll.weightedPct);
+                if (poll.candidate_name === 'Kamala Harris' && poll.state === 'Michigan') {
+                    adjustedPct -= 15; 
+                }
+            } else if (poll.candidate_name === 'Donald Trump') {
+                adjustedPct = (oddsWeight * trumpProbability) + (pollsWeight * poll.weightedPct);
+            }
+            if (poll.candidate_name === 'Jill Stein' && poll.state === 'Michigan') {
+                adjustedPct += 15;  
+            }
+            return { ...poll, adjustedPct };
+        });
+
+    
+        
+        let candidatesData = Array.from(d3.group(filteredData, d => d.candidate_name), ([name, group]) => ({
+            name, 
+            percentage: d3.mean(group, d => d.adjustedPct)
+        }))
+
+        const totalPercentage = d3.sum(candidatesData, d => d.percentage);
+        candidatesData.forEach(candidate => {
+            candidate.percentage = (candidate.percentage / totalPercentage) * 100;
+        });
+
+        candidatesData = candidatesData.filter(candidate => candidate.percentage >= 0.15);
+        data = { polls: filteredData, candidates: candidatesData };
+        return data;
+    }
+
+    function getWeight(name, weights) {
+        if (!name) return 1;
+        if (weights.red.includes(name)) return 0.33;
+        if (weights.leanred.includes(name) || weights.leanblue.includes(name)) return 0.75;
+        if (weights.blue.includes(name)) return 0.33;
+        if (weights.unreliable.includes(name)) return 0.2;
+        if (weights.relmissing.includes(name)) return 1.2;
+        return 1.2;
+    }    
+
+    function calculateTotalElectoralVotes(num) {
+        const totalElectoralVotes = {};
+        Object.keys(electoralVotesMapping).forEach(state => {
+            probabilityStore[state] = calculateProbability(state);
+            const stateData = data.polls.filter(d => d.state === state);
+    
+            if (stateData.length > 5) {
+                const candidates = d3.group(stateData, d => d.candidate_name);
+                if (!candidates || typeof candidates !== 'object') {
+                    return;
+                }
+                const totalAdjustedPct = d3.sum(stateData, d => d.adjustedPct);
+                const normalizedCandidates = Array.from(candidates, ([name, group]) => ({
+                    name,
+                    percentage: (d3.sum(group, d => d.adjustedPct) / totalAdjustedPct) * 100
+                })); 
+    
+                const filteredCandidates = normalizedCandidates.filter(candidate => candidate.percentage >= 0.1);
+                let [highestPercentage, secondHighestPercentage] = [-Infinity, -Infinity];
+                let [winningCandidate, runnerUpCandidate] = [null, null];
+    
+                filteredCandidates.forEach(candidate => {
+                    let percentage = candidate.percentage;
+                    if (candidate.name === "Donald Trump") {
+                        percentage += swingAdjustment;
+                    }
+                    if (percentage > highestPercentage) {
+                        [secondHighestPercentage, runnerUpCandidate] = [highestPercentage, winningCandidate];
+                        [highestPercentage, winningCandidate] = [percentage, candidate.name];
+                    } else if (percentage > secondHighestPercentage) {
+                        [secondHighestPercentage, runnerUpCandidate] = [percentage, candidate.name];
+                    }
+                });
+    
+                if (winningCandidate && secondHighestPercentage !== -Infinity) {
+                    const margin = highestPercentage - secondHighestPercentage;
+                    const marginForHarris = winningCandidate === 'Donald Trump' ? -margin : Math.abs(margin);
+                    updateStateDisplay(state, marginForHarris, electoralVotesMapping[state], winningCandidate, num);
+                    totalElectoralVotes[winningCandidate] = (totalElectoralVotes[winningCandidate] || 0) + electoralVotesMapping[state];
+                }
+            } else {
+                handleDefaultStateAllocation(state, totalElectoralVotes, num);
+            }
+        });
+        return totalElectoralVotes;
+    }
+
+    
+    function calculateProbability(state, iterations = 100000) {
+        const statePolls = data.polls.filter(poll => poll.state === state);
+        const candidatesMap = new Map();
+        statePolls.forEach(poll => {
+            if (!candidatesMap.has(poll.candidate_name)) {
+                candidatesMap.set(poll.candidate_name, { adjustedPct: 0, count: 0 });
+            }
+            const candidateData = candidatesMap.get(poll.candidate_name);
+            candidateData.adjustedPct += poll.adjustedPct;
+            candidateData.count += 1;
+        });
+
+        const candidates = Array.from(candidatesMap.entries()).map(([name, data]) => ({
+            name,
+            adjustedPct: data.adjustedPct / data.count 
+        }));
+        if (candidates.length === 0) {
+            return {}; 
+        }
+        const totalAdjustedPct = candidates.reduce((sum, candidate) => sum + candidate.adjustedPct, 0);
+        candidates.forEach(candidate => {
+            candidate.adjustedPct = (candidate.adjustedPct / totalAdjustedPct) * 100; // Normalize
+        });
+
+        const results = candidates.reduce((acc, { name }) => ({ ...acc, [name]: 0 }), {});    
+        for (let i = 0; i < iterations; i++) {
+            let odd = 0;
+            const randomResults = candidates.map(candidate => {
+                if (candidate.name == "Kamala Harris") {
+                    odd = bettingOdds.harrisProbability;
+                } else if (candidate.name == "Donald Trump") {
+                    odd = bettingOdds.trumpProbability;
+                }
+                const variation = (Math.random() - 0.33) * 20; 
+                const adjustedVote = Math.max(0, Math.min(100, candidate.adjustedPct + variation));
+                return {
+                    name: candidate.name,
+                    result: adjustedVote 
+                };
+            });
+            const winner = randomResults.reduce((prev, curr) => (curr.result > prev.result ? curr : prev));
+            results[winner.name] += 1; 
+        }
+        const winProbabilities = Object.fromEntries(
+            Object.entries(results).map(([name, count]) => [name, (count / iterations) * 100])
+        );
+        probabilityStore[state] = "Win Probability: " + Object.entries(winProbabilities)
+        .filter(([name, prob]) => prob > 0) 
+        .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) 
+        .join(", ");
+        return winProbabilities; 
+    }
+
+
+    function updateStateDisplay(state, margin, electoralVotes, winner, num) {
+        marginStore[state] = "Margin: " + winner + " +" + Math.abs(margin).toFixed(2) + "%";
+        const stateColor = getStateColor(margin);
+        const abbState = stateAbbreviations[state];
+        applyColor(abbState, stateColor);
+        if (num == 1){
+            changeDesc(abbState, electoralVotes);
+            let hp = probabilityStore[state]["Kamala Harris"];
+            let tp = probabilityStore[state]["Donald Trump"];
+            oddsDesc(abbState, hp, tp)
+        } 
+    }
+
+    function getStateColor(margin) {
+        if (margin > 8) return "solidD";
+        if (margin > 4.5) return "likelyD";
+        if (margin > 2) return "leanD";
+        if (margin > 0) return "tiltD";
+        if (margin > -2) return "tiltR";
+        if (margin > -4.5) return "leanR";
+        if (margin > -8) return "likelyR";
+        return "solidR";
+    }
+
+    function handleDefaultStateAllocation(state, totalElectoralVotes, num) {
+        const stateElectoralVotes = electoralVotesMapping[state];
+        const abbState = stateAbbreviations[state];
+        let stateColor, candidate;
+        let hp;
+        let tp;
+
+        if (["Colorado", "California", "Connecticut", "District of Columbia", "Hawaii", "New Hampshire", "Illinois", "Rhode Island", "New Jersey", "New York", "Oregon", "Virginia", "Vermont", "Washington", "Maine", "Maine CD-1", "New Mexico", "Massachusetts", "Delaware", "Maryland", "Nebraska CD-2"].includes(state)) {
+            stateColor = state === "Nebraska CD-2" ? "likelyD" : "solidD";
+            candidate = "Kamala Harris";
+            if (num == 1){
+            hp = abbState === "NE2" ? 85 : Math.floor(Math.random() * 3) + 98;
+			tp = abbState === "NE2" ? 15 : 100 - hp;
+            }
+        } else if (["Alabama", "Arkansas", "Alaska", "Idaho", "Iowa", "Indiana", "Kansas", "Kentucky", "Louisiana", "Montana", "North Dakota", "Mississippi", "Missouri", "Maine CD-2", "Nebraska", "Oklahoma", "South Carolina", "South Dakota", "Tennessee", "Utah", "West Virginia", "Wyoming"].includes(state)) {
+            stateColor = state === "Alaska" ? "likelyR" : (state === "Maine CD-2" ? "leanR" : "solidR");
+            candidate = "Donald Trump";
+            if (num == 1){
+            tp = abbState === "AK" ? 90 : (state === "ME2" ? 80 :Math.floor(Math.random() * 3) + 98);
+			hp = abbState === "AK" ? 10 : (state === "ME2" ? 20 :100 - tp);
+            }
+        } else {
+            return;
+        }
+
+        applyColor(abbState, stateColor);
+        if (num == 1){
+            changeDesc(abbState, stateElectoralVotes);
+            oddsDesc(abbState, hp, tp) 
+        }        
+        totalElectoralVotes[candidate] = (totalElectoralVotes[candidate] || 0) + stateElectoralVotes;
+    }
+
+    function populateDropdown(data) {
+        const dropdown = d3.select("#stateDropdown");
+        const states = [...new Set(data.map(d => d.state).filter(Boolean))];
+        const filteredStates = states.filter(state => {
+            const stateData = data.filter(d => d.state === state); 
+            return stateData.length >= 20; 
+        });
+        filteredStates.sort((a, b) => a.localeCompare(b));
+        filteredStates.forEach(state => {
+            dropdown.append("option")
+                .attr("value", state)
+                .text(state);
+        });
+        // Listen for dropdown changes
+        dropdown.on("change", function () {
+            const selectedState = document.getElementById("stateDropdown").value;
+            displayResults(selectedState);
+        });
+    }
+
+    function displayResults(selectedState) {
+        const stateData = data.polls.filter(d => d.state === selectedState);
+        if (stateData.length >= 20) {
+            const candidates = d3.group(stateData, d => d.candidate_name);
+            let candidatesData = Array.from(candidates)
+                .map(([name, polls]) => {
+                    const percentage = d3.mean(polls, d => d.adjustedPct); 
+                    if (percentage > 0) {
+                        return { name, percentage: percentage.toFixed(2) };
+                    }
+                    return null;
+                })
+                .filter(c => c !== null) 
+                .sort((a, b) => b.percentage - a.percentage);
+            const totalPercentage = d3.sum(candidatesData, d => d.percentage);
+            candidatesData.forEach(candidate => {
+                candidate.percentage = (candidate.percentage / totalPercentage) * 100;
+            });
+            const voteShareText = candidatesData
+                .map(c => `${c.name}: ${c.percentage.toFixed(2)}%`)
+                .join(", ");
+            d3.select("#voteShare").text(`Popular Vote Estimate: ${voteShareText}`);
+            d3.select("#margin").text(marginStore[selectedState]);
+            const finalProb = Object.entries(probabilityStore[selectedState])
+                .filter(([name, prob]) => prob > 0) // Remove candidates with 0% probability
+                .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) // Format remaining probabilities
+                .join(", ");
+            d3.select("#probability").text("Win Probability: " + finalProb);
+        }
+        d3.select("#resultsState").text(`Data for: ${selectedState}`);
+        
+    }
+    
+    function displayEV (totalEVDisplay) {
+        document.getElementById("totalElectoralVotes").innerText = `EV: ${Object.entries(totalEVDisplay)
+            .map(([candidate, votes]) => `${candidate}: ${votes}`)
+            .join(", ")}`;
+    }
+
+    function handleSwingAdjustment() {
+        document.getElementsByClassName("test").innerHTML = "";
+        const swingInput = document.getElementById("swingInput");
+        swingAdjustment = parseFloat(swingInput.value) || 0; 
+        displayEV(calculateTotalElectoralVotes(0));
+        mapRefresh();
+    }
+    document.getElementById("swingInput").addEventListener("input", handleSwingAdjustment);
+
+    function updateSim () {
+        swingAdjustment = 0;
+        d3.select("#totalElectoralVotes").text(`Loading...`);
+        x = document.getElementById("xDropdown").value;
+        document.getElementById("stateDropdown").value = "select";
+        data = null;
+        initSim();
+        d3.select("#voteShare").text(`Popular Vote Estimate:`);
+        d3.select("#resultsState").text(`Data for: US`);
+        d3.select("#probability").text(`Win Probability:`);
+        d3.select("#margin").text(`Margin:`);
+    }
+    document.getElementById("xDropdown").addEventListener("change", updateSim);
+
+    async function initSim() {
+        document.getElementById("swingInput").value = 0;
+        await fetchPollsterWeights();
+        await fetchBettingOdds();
+        data = await getAndFilterData(dataUrl);
+        let totalEVDisplay = calculateTotalElectoralVotes(1);
+        mapRefresh();
+        populateDropdown(data.polls);
+        displayEV(totalEVDisplay);
+    }
+    document.getElementById("xDropdown").value = 15;
+    initSim();
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    // Function to remove the element whenever it is added
+    function removeElement() {
+        var element = document.querySelector('a[href="https://simplemaps.com"][title="For evaluation use only."]');
+        if (element) {
+            element.remove();
+        }
+    }
+
+    // Create a MutationObserver to watch for changes in the DOM
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.addedNodes.length) {
+                removeElement();
+            }
+        });
+    });
+
+    // Start observing the document for any child node changes
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Try to remove the element in case it already exists
+    removeElement();
+});
