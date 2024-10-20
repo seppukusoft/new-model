@@ -254,16 +254,18 @@ document.addEventListener("DOMContentLoaded", async function () {
         const winProbabilities = Object.fromEntries(
             Object.entries(results).map(([name, count]) => [name, (count / iterations) * 100])
         );
-        probabilityStore[state] = "Win Probability: " + Object.entries(winProbabilities)
-        .filter(([name, prob]) => prob > 0) 
-        .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) 
-        .join(", ");
+        probabilityStore[state] = "Win Probability: " + 
+        Object.entries(winProbabilities) 
+            .filter(([name, prob]) => prob > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, prob]) => `${name}: ${Math.round(prob)}%`) 
+            .join(", ");
         return winProbabilities; 
     }
 
 
     function updateStateDisplay(state, margin, electoralVotes, winner, num) {
-        marginStore[state] = "Margin: " + winner + " +" + Math.abs(margin).toFixed(2) + "%";
+        marginStore[state] = "Average Margin: " + winner + " +" + Math.abs(margin).toFixed(2) + "%";
         const stateColor = getStateColor(margin);
         const abbState = stateAbbreviations[state];
         applyColor(abbState, stateColor);
@@ -297,14 +299,14 @@ document.addEventListener("DOMContentLoaded", async function () {
             stateColor = state === "Nebraska CD-2" ? "likelyD" : "solidD";
             candidate = "Kamala Harris";
             if (num == 1){
-            hp = abbState === "NE2" ? 85 : Math.floor(Math.random() * 3) + 98;
+            hp = abbState === "NE2" ? 85 : Math.round(Math.random() * 3) + 98;
 			tp = abbState === "NE2" ? 15 : 100 - hp;
             }
         } else if (["Alabama", "Arkansas", "Alaska", "Idaho", "Iowa", "Indiana", "Kansas", "Kentucky", "Louisiana", "Montana", "North Dakota", "Mississippi", "Missouri", "Maine CD-2", "Nebraska", "Oklahoma", "South Carolina", "South Dakota", "Tennessee", "Utah", "West Virginia", "Wyoming"].includes(state)) {
             stateColor = state === "Alaska" ? "likelyR" : (state === "Maine CD-2" ? "leanR" : "solidR");
             candidate = "Donald Trump";
             if (num == 1){
-            tp = abbState === "AK" ? 90 : (state === "ME2" ? 80 :Math.floor(Math.random() * 3) + 98);
+            tp = abbState === "AK" ? 90 : (state === "ME2" ? 80 :Math.round(Math.random() * 3) + 98);
 			hp = abbState === "AK" ? 10 : (state === "ME2" ? 20 :100 - tp);
             }
         } else {
@@ -363,7 +365,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             d3.select("#voteShare").text(`Popular Vote Estimate: ${voteShareText}`);
             d3.select("#margin").text(marginStore[selectedState]);
             const finalProb = Object.entries(probabilityStore[selectedState])
-                .filter(([name, prob]) => prob > 0) // Remove candidates with 0% probability
+                .filter(([name, prob]) => prob > 0)
+                .sort((a, b) => b[1] - a[1]) // Remove candidates with 0% probability
                 .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) // Format remaining probabilities
                 .join(", ");
             d3.select("#probability").text("Win Probability: " + finalProb);
@@ -391,13 +394,15 @@ document.addEventListener("DOMContentLoaded", async function () {
         swingAdjustment = 0;
         d3.select("#totalElectoralVotes").text(`Loading...`);
         x = document.getElementById("xDropdown").value;
+        document.getElementById("stateDropdown").innerHTML = "";
         document.getElementById("stateDropdown").value = "select";
+        d3.select("#stateDropdown").append("option").attr("value", "select").text("--Select--");
         data = null;
         initSim();
         d3.select("#voteShare").text(`Popular Vote Estimate:`);
         d3.select("#resultsState").text(`Data for: US`);
         d3.select("#probability").text(`Win Probability:`);
-        d3.select("#margin").text(`Margin:`);
+        d3.select("#margin").text(`Average Margin:`);
     }
     document.getElementById("xDropdown").addEventListener("change", updateSim);
 
