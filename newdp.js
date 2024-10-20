@@ -421,15 +421,12 @@ document.addEventListener("DOMContentLoaded", async function () {
 });
 
 document.addEventListener("DOMContentLoaded", function() {
-    // Function to remove the element whenever it is added
     function removeElement() {
         var element = document.querySelector('a[href="https://simplemaps.com"][title="For evaluation use only."]');
         if (element) {
             element.remove();
         }
     }
-
-    // Create a MutationObserver to watch for changes in the DOM
     var observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.addedNodes.length) {
@@ -437,10 +434,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
     });
-
-    // Start observing the document for any child node changes
     observer.observe(document.body, { childList: true, subtree: true });
-
-    // Try to remove the element in case it already exists
     removeElement();
 });
