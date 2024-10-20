@@ -299,14 +299,14 @@ document.addEventListener("DOMContentLoaded", async function () {
             stateColor = state === "Nebraska CD-2" ? "likelyD" : "solidD";
             candidate = "Kamala Harris";
             if (num == 1){
-            hp = abbState === "NE2" ? 85 : Math.round(Math.random() * 3) + 98;
+            hp = abbState === "NE2" ? 85 : Math.round(Math.random() * 2) + 98;
 			tp = abbState === "NE2" ? 15 : 100 - hp;
             }
         } else if (["Alabama", "Arkansas", "Alaska", "Idaho", "Iowa", "Indiana", "Kansas", "Kentucky", "Louisiana", "Montana", "North Dakota", "Mississippi", "Missouri", "Maine CD-2", "Nebraska", "Oklahoma", "South Carolina", "South Dakota", "Tennessee", "Utah", "West Virginia", "Wyoming"].includes(state)) {
             stateColor = state === "Alaska" ? "likelyR" : (state === "Maine CD-2" ? "leanR" : "solidR");
             candidate = "Donald Trump";
             if (num == 1){
-            tp = abbState === "AK" ? 90 : (state === "ME2" ? 80 :Math.round(Math.random() * 3) + 98);
+            tp = abbState === "AK" ? 90 : (state === "ME2" ? 80 :Math.round(Math.random() * 2) + 98);
 			hp = abbState === "AK" ? 10 : (state === "ME2" ? 20 :100 - tp);
             }
         } else {
