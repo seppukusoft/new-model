@@ -27,10 +27,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
     let data = null, weights = null, x = 15; 
     let swingAdjustment = 0; 
-    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731];
+    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731, 88807];
     let bettingOdds = null;
     let pollCounts = {};
-    let marginStore = {}, probabilityStore = {}, USWinStore = {};
+    let marginStore = {}, probabilityStore = {}, USWinStore = {}, plotStore = {};
 
     async function fetchPollsterWeights() {
         if (weights) {
@@ -79,6 +79,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         const response = await fetch(url);
         const csvText = await response.text();
         let initData = Papa.parse(csvText, { header: true, dynamicTyping: true }).data.filter(d => d.state);
+        
         const now = new Date();
         const daysAgo = new Date();
         daysAgo.setDate(now.getDate() - (x));
@@ -87,6 +88,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             const pollDate = new Date(d.end_date); 
             return pollDate >= daysAgo && pollDate <= now && !excludedPollIds.includes(d.poll_id);
         });
+
         let exData = timeData.filter(d => 
             d.candidate_name.toLowerCase() !== "joe biden" &&
             d.candidate_name.toLowerCase() !== "robert f. kennedy" &&
@@ -121,13 +123,13 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (poll.candidate_name === 'Kamala Harris') {
                 adjustedPct = (oddsWeight * harrisProbability) + (pollsWeight * poll.weightedPct);
                 if (poll.candidate_name === 'Kamala Harris' && poll.state === 'Michigan') {
-                    adjustedPct -= 15; 
+                    adjustedPct -= 12; 
                 }
             } else if (poll.candidate_name === 'Donald Trump') {
                 adjustedPct = (oddsWeight * trumpProbability) + (pollsWeight * poll.weightedPct);
             }
             if (poll.candidate_name === 'Jill Stein' && poll.state === 'Michigan') {
-                adjustedPct += 15;  
+                adjustedPct += 12;  
             }
             return { ...poll, adjustedPct };
         });
@@ -323,25 +325,27 @@ document.addEventListener("DOMContentLoaded", async function () {
         totalElectoralVotes[candidate] = (totalElectoralVotes[candidate] || 0) + stateElectoralVotes;
     }
 
-    function calculateElectionWinProbability(numSimulations = 10000) {
+    function calculateElectionWinProbability(iterations = 1000) {
+        if (USWinStore[x]) {
+            return USWinStore[x];
+        }
         const electionResults = {}; 
         const candidates = Object.keys(probabilityStore[Object.keys(probabilityStore)[0]] || {});
-        candidates.forEach(candidate => electionResults[candidate] = 0); 
+        candidates.forEach(candidate => electionResults[candidate] = 0);
     
-        for (let sim = 0; sim < numSimulations; sim++) {
+        for (let sim = 0; sim < iterations; sim++) {
             const electoralVoteCount = {}; 
             candidates.forEach(candidate => electoralVoteCount[candidate] = 0);
-    
             Object.keys(electoralVotesMapping).forEach(state => {
                 const winProbabilities = { ...probabilityStore[state] };
-                winProbabilities["Donald Trump"] *= 1.5; 
+                winProbabilities["Donald Trump"] *= Math.sqrt(0.8/x)*8; 
                 const totalProbability = Object.values(winProbabilities).reduce((sum, prob) => sum + prob, 0);
                 candidates.forEach(candidate => winProbabilities[candidate] = (winProbabilities[candidate] / totalProbability) * 100);
     
-                let randomValue = Math.random() * 100; 
+                let randomValue = Math.random() * 100;
                 let cumulativeProbability = 0;
                 let winner = candidates[0];
-    
+
                 for (let candidate of candidates) {
                     cumulativeProbability += winProbabilities[candidate];
                     if (randomValue <= cumulativeProbability) {
@@ -349,10 +353,9 @@ document.addEventListener("DOMContentLoaded", async function () {
                         break;
                     }
                 }
-    
-                electoralVoteCount[winner] += electoralVotesMapping[state]; 
+                electoralVoteCount[winner] += electoralVotesMapping[state];
             });
-    
+
             for (let candidate of candidates) {
                 if (electoralVoteCount[candidate] >= 270) {
                     electionResults[candidate] += 1; 
@@ -384,7 +387,6 @@ document.addEventListener("DOMContentLoaded", async function () {
                 .attr("value", state)
                 .text(state);
         });
-        // Listen for dropdown changes
         dropdown.on("change", function () {
             const selectedState = document.getElementById("stateDropdown").value;
 
@@ -419,8 +421,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             d3.select("#margin").text(marginStore[selectedState]);
             const finalProb = Object.entries(probabilityStore[selectedState])
                 .filter(([name, prob]) => prob > 0)
-                .sort((a, b) => b[1] - a[1]) // Remove candidates with 0% probability
-                .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) // Format remaining probabilities
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) 
                 .join(", ");
             d3.select("#probability").text("Win Probability: " + finalProb);
         }
@@ -470,12 +472,15 @@ document.addEventListener("DOMContentLoaded", async function () {
         mapRefresh();
         populateDropdown(data.polls);
         displayEV(totalEVDisplay);
-        const USWinProb = Object.entries(calculateElectionWinProbability())
+        if (!USWinStore[x]) {
+            const USWinProb = Object.entries(calculateElectionWinProbability())
                 .filter(([name, prob]) => prob > 0)
-                .sort((a, b) => b[1] - a[1]) // Remove candidates with 0% probability
-                .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) // Format remaining probabilities
+                .sort((a, b) => b[1] - a[1]) 
+                .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) 
                 .join(", ");
-            d3.select("#probability").text("Win Probability: " + USWinProb); 
+                USWinStore[x] = USWinProb;
+        }
+        d3.select("#probability").text("Win Probability: " + USWinStore[x]); 
     }
     document.getElementById("xDropdown").value = 15;
     initSim();
