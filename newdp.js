@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", async function () {
     const dataUrl = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv";
     const weightsUrl = "https://raw.githubusercontent.com/seppukusoft/538-bias-marker/main/list.json";
-    const url = 'https://api.the-odds-api.com/v4/sports/politics_us_presidential_election_winner/odds?regions=us&oddsFormat=decimal&apiKey=2cfedf92432fd57ef9ae34b7091e4d4a';
+    const url = 'https://api.the-odds-api.com/v4/sports/politics_us_presidential_election_winner/odds?regions=us&oddsFormat=decimal&apiKey=3349c798ddb214a99aa7dbbd7c26f4db';
     const electoralVotesMapping = {
       "Alabama": 9, "Alaska": 3, "Arizona": 11, "Arkansas": 6, "California": 54, "Colorado": 10, "Connecticut": 7, "Delaware": 3, "District of Columbia": 3,
       "Florida": 30, "Georgia": 16, "Hawaii": 4, "Idaho": 4, "Illinois": 19, "Indiana": 11, "Iowa": 6, "Kansas": 6, "Kentucky": 8, "Louisiana": 8, "Maine": 2,
@@ -30,8 +30,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731];
     let bettingOdds = null;
     let pollCounts = {};
-    let marginStore = {};
-    let probabilityStore = {};
+    let marginStore = {}, probabilityStore = {}, USWinStore = {};
 
     async function fetchPollsterWeights() {
         if (weights) {
@@ -262,8 +261,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             .join(", ");
         return winProbabilities; 
     }
-
-
+    
     function updateStateDisplay(state, margin, electoralVotes, winner, num) {
         marginStore[state] = "Average Margin: " + winner + " +" + Math.abs(margin).toFixed(2) + "%";
         const stateColor = getStateColor(margin);
@@ -317,9 +315,80 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (num == 1){
             changeDesc(abbState, stateElectoralVotes);
             oddsDesc(abbState, hp, tp) 
+            probabilityStore[state] = {
+                "Kamala Harris": hp,
+                "Donald Trump": tp
+            };
         }        
         totalElectoralVotes[candidate] = (totalElectoralVotes[candidate] || 0) + stateElectoralVotes;
     }
+
+    function calculateElectionWinProbability(numSimulations = 10000) {
+        const electionResults = {}; // Track wins for each candidate
+    
+        // Initialize candidates from the probability store of the first state
+        const candidates = Object.keys(probabilityStore[Object.keys(probabilityStore)[0]] || {});
+        candidates.forEach(candidate => electionResults[candidate] = 0); // Set 0 wins for each candidate
+    
+        // Loop through simulations
+        for (let sim = 0; sim < numSimulations; sim++) {
+            const electoralVoteCount = {}; // Track electoral votes per simulation
+            candidates.forEach(candidate => electoralVoteCount[candidate] = 0);
+    
+            // Iterate through each state
+            Object.keys(electoralVotesMapping).forEach(state => {
+                const winProbabilities = { ...probabilityStore[state] }; // Get stored probabilities
+                
+                // Add a slight bias for Trump
+                winProbabilities["Donald Trump"] *= 1.5; // Slightly increase Trump's probabilities
+    
+                // Normalize the probabilities to sum to 100%
+                const totalProbability = Object.values(winProbabilities).reduce((sum, prob) => sum + prob, 0);
+                candidates.forEach(candidate => winProbabilities[candidate] = (winProbabilities[candidate] / totalProbability) * 100);
+    
+                let randomValue = Math.random() * 100; // Generate a random number for winner selection
+                let cumulativeProbability = 0;
+                let winner = candidates[0];
+    
+                // Determine winner based on random value and win probabilities
+                for (let candidate of candidates) {
+                    cumulativeProbability += winProbabilities[candidate];
+                    if (randomValue <= cumulativeProbability) {
+                        winner = candidate;
+                        break;
+                    }
+                }
+    
+                electoralVoteCount[winner] += electoralVotesMapping[state]; // Add electoral votes to winner
+            });
+    
+            // Determine national winner
+            for (let candidate of candidates) {
+                if (electoralVoteCount[candidate] >= 270) {
+                    electionResults[candidate] += 1; // Increment win count if candidate reaches 270 electoral votes
+                    break;
+                }
+            }
+        }
+    
+        // Normalize results to ensure they sum to 100%
+        const totalWins = Object.values(electionResults).reduce((sum, wins) => sum + wins, 0);
+        const finalWinProbabilities = {};
+        candidates.forEach(candidate => {
+            if (candidate == "Kamala Harris") {
+                finalWinProbabilities["Donald Trump"] = (electionResults[candidate] / totalWins) * 100;
+            } else if (candidate == "Donald Trump") {
+                finalWinProbabilities["Kamala Harris"] = (electionResults[candidate] / totalWins) * 100;
+            } else {
+                finalWinProbabilities[candidate] = (electionResults[candidate] / totalWins) * 100;
+            }
+        });
+    
+        return finalWinProbabilities; // Return normalized win probabilities
+    }
+    
+    
+
 
     function populateDropdown(data) {
         const dropdown = d3.select("#stateDropdown");
@@ -337,11 +406,14 @@ document.addEventListener("DOMContentLoaded", async function () {
         // Listen for dropdown changes
         dropdown.on("change", function () {
             const selectedState = document.getElementById("stateDropdown").value;
+
             displayResults(selectedState);
         });
     }
 
     function displayResults(selectedState) {
+        document.getElementById("voteShare").style.display = "block";
+        document.getElementById("margin").style.display = "block";
         const stateData = data.polls.filter(d => d.state === selectedState);
         if (stateData.length >= 20) {
             const candidates = d3.group(stateData, d => d.candidate_name);
@@ -398,15 +470,17 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById("stateDropdown").value = "select";
         d3.select("#stateDropdown").append("option").attr("value", "select").text("--Select--");
         data = null;
+        probabilityStore = {};
+        marginStore = {};
         initSim();
-        d3.select("#voteShare").text(`Popular Vote Estimate:`);
         d3.select("#resultsState").text(`Data for: US`);
         d3.select("#probability").text(`Win Probability:`);
-        d3.select("#margin").text(`Average Margin:`);
     }
     document.getElementById("xDropdown").addEventListener("change", updateSim);
 
     async function initSim() {
+        document.getElementById("voteShare").style.display = "none";
+        document.getElementById("margin").style.display = "none";
         document.getElementById("swingInput").value = 0;
         await fetchPollsterWeights();
         await fetchBettingOdds();
@@ -415,18 +489,27 @@ document.addEventListener("DOMContentLoaded", async function () {
         mapRefresh();
         populateDropdown(data.polls);
         displayEV(totalEVDisplay);
+        const USWinProb = Object.entries(calculateElectionWinProbability())
+                .filter(([name, prob]) => prob > 0)
+                .sort((a, b) => b[1] - a[1]) // Remove candidates with 0% probability
+                .map(([name, prob]) => `${name}: ${prob.toFixed(2)}%`) // Format remaining probabilities
+                .join(", ");
+            d3.select("#probability").text("Win Probability: " + USWinProb); 
     }
     document.getElementById("xDropdown").value = 15;
     initSim();
 });
 
 document.addEventListener("DOMContentLoaded", function() {
+    // Function to remove the element whenever it is added
     function removeElement() {
         var element = document.querySelector('a[href="https://simplemaps.com"][title="For evaluation use only."]');
         if (element) {
             element.remove();
         }
     }
+
+    // Create a MutationObserver to watch for changes in the DOM
     var observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.addedNodes.length) {
@@ -434,6 +517,10 @@ document.addEventListener("DOMContentLoaded", function() {
             }
         });
     });
+
+    // Start observing the document for any child node changes
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // Try to remove the element in case it already exists
     removeElement();
 });
