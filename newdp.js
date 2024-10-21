@@ -324,33 +324,24 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     function calculateElectionWinProbability(numSimulations = 10000) {
-        const electionResults = {}; // Track wins for each candidate
-    
-        // Initialize candidates from the probability store of the first state
+        const electionResults = {}; 
         const candidates = Object.keys(probabilityStore[Object.keys(probabilityStore)[0]] || {});
-        candidates.forEach(candidate => electionResults[candidate] = 0); // Set 0 wins for each candidate
+        candidates.forEach(candidate => electionResults[candidate] = 0); 
     
-        // Loop through simulations
         for (let sim = 0; sim < numSimulations; sim++) {
-            const electoralVoteCount = {}; // Track electoral votes per simulation
+            const electoralVoteCount = {}; 
             candidates.forEach(candidate => electoralVoteCount[candidate] = 0);
     
-            // Iterate through each state
             Object.keys(electoralVotesMapping).forEach(state => {
-                const winProbabilities = { ...probabilityStore[state] }; // Get stored probabilities
-                
-                // Add a slight bias for Trump
-                winProbabilities["Donald Trump"] *= 1.5; // Slightly increase Trump's probabilities
-    
-                // Normalize the probabilities to sum to 100%
+                const winProbabilities = { ...probabilityStore[state] };
+                winProbabilities["Donald Trump"] *= 1.5; 
                 const totalProbability = Object.values(winProbabilities).reduce((sum, prob) => sum + prob, 0);
                 candidates.forEach(candidate => winProbabilities[candidate] = (winProbabilities[candidate] / totalProbability) * 100);
     
-                let randomValue = Math.random() * 100; // Generate a random number for winner selection
+                let randomValue = Math.random() * 100; 
                 let cumulativeProbability = 0;
                 let winner = candidates[0];
     
-                // Determine winner based on random value and win probabilities
                 for (let candidate of candidates) {
                     cumulativeProbability += winProbabilities[candidate];
                     if (randomValue <= cumulativeProbability) {
@@ -359,32 +350,22 @@ document.addEventListener("DOMContentLoaded", async function () {
                     }
                 }
     
-                electoralVoteCount[winner] += electoralVotesMapping[state]; // Add electoral votes to winner
+                electoralVoteCount[winner] += electoralVotesMapping[state]; 
             });
     
-            // Determine national winner
             for (let candidate of candidates) {
                 if (electoralVoteCount[candidate] >= 270) {
-                    electionResults[candidate] += 1; // Increment win count if candidate reaches 270 electoral votes
+                    electionResults[candidate] += 1; 
                     break;
                 }
             }
         }
-    
-        // Normalize results to ensure they sum to 100%
         const totalWins = Object.values(electionResults).reduce((sum, wins) => sum + wins, 0);
         const finalWinProbabilities = {};
         candidates.forEach(candidate => {
-            if (candidate == "Kamala Harris") {
-                finalWinProbabilities["Donald Trump"] = (electionResults[candidate] / totalWins) * 100;
-            } else if (candidate == "Donald Trump") {
-                finalWinProbabilities["Kamala Harris"] = (electionResults[candidate] / totalWins) * 100;
-            } else {
                 finalWinProbabilities[candidate] = (electionResults[candidate] / totalWins) * 100;
-            }
         });
-    
-        return finalWinProbabilities; // Return normalized win probabilities
+        return finalWinProbabilities; 
     }
     
     
