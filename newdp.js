@@ -295,8 +295,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         let hp;
         let tp;
 
-        if (["Colorado", "California", "Connecticut", "District of Columbia", "Hawaii", "New Hampshire", "Illinois", "Rhode Island", "New Jersey", "New York", "Oregon", "Virginia", "Vermont", "Washington", "Maine", "Maine CD-1", "New Mexico", "Massachusetts", "Delaware", "Maryland", "Nebraska CD-2"].includes(state)) {
-            stateColor = state === "Nebraska CD-2" ? "likelyD" : "solidD";
+        if (["Colorado", "California", "Connecticut", "District of Columbia", "Hawaii", "Minnesota", "New Hampshire", "Illinois", "Rhode Island", "New Jersey", "New York", "Oregon", "Virginia", "Vermont", "Washington", "Maine", "Maine CD-1", "New Mexico", "Massachusetts", "Delaware", "Maryland", "Nebraska CD-2"].includes(state)) {
+            stateColor = state === "Nebraska CD-2" || "Minnesota" ? "likelyD" : "solidD";
             candidate = "Kamala Harris";
             if (num == 1){
             hp = abbState === "NE2" ? 85 : Math.round(Math.random() * 2) + 98;
