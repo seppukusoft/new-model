@@ -25,12 +25,12 @@ document.addEventListener("DOMContentLoaded", async function () {
         "Utah": "UT", "Vermont": "VT", "Virginia": "VA", "Washington": "WA",
         "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY"
     };
-    let data = null, weights = null, x = 15; 
+    let data = null, weights = null, x = 15, y = 0; 
     let swingAdjustment = 0; 
     const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731, 88807, 88643, 88817];
-    let bettingOdds = null;
+    let bettingOdds = null, USProbStore = [];
     let pollCounts = {};
-    let marginStore = {}, probabilityStore = {}, USWinStore = {}, plotStore = {};
+    let marginStore = {}, probabilityStore = {}, USWinStore = {}, plotStore = {};    
 
     async function fetchPollsterWeights() {
         if (weights) {
@@ -299,7 +299,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             stateColor = state === "Nebraska CD-2" ? "likelyD" : (state === "Minnesota" ? "likelyD" : "solidD");
             candidate = "Kamala Harris";
             if (num == 1){
-            hp = abbState === "NE2" ? 85 : Math.round(Math.random() * 2) + 98;
+            hp = abbState === "NE2" ? 85 : (abbState === "MN" ? 85 : Math.round(Math.random() * 2) + 98);
 			tp = abbState === "NE2" ? 15 : 100 - hp;
             }
         } else if (["Alabama", "Arkansas", "Alaska", "Idaho", "Iowa", "Indiana", "Kansas", "Kentucky", "Louisiana", "Montana", "North Dakota", "Mississippi", "Missouri", "Maine CD-2", "Nebraska", "Ohio", "Oklahoma", "South Carolina", "South Dakota", "Tennessee", "Utah", "West Virginia", "Wyoming"].includes(state)) {
@@ -338,7 +338,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             candidates.forEach(candidate => electoralVoteCount[candidate] = 0);
             Object.keys(electoralVotesMapping).forEach(state => {
                 const winProbabilities = { ...probabilityStore[state] };
-                winProbabilities["Donald Trump"] *= Math.sqrt(0.8/x)*8; 
+                winProbabilities["Donald Trump"] *= Math.sqrt(0.6/x)*8; 
                 const totalProbability = Object.values(winProbabilities).reduce((sum, prob) => sum + prob, 0);
                 candidates.forEach(candidate => winProbabilities[candidate] = (winProbabilities[candidate] / totalProbability) * 100);
     
@@ -368,6 +368,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         candidates.forEach(candidate => {
                 finalWinProbabilities[candidate] = (electionResults[candidate] / totalWins) * 100;
         });
+        USProbStore = finalWinProbabilities;
         return finalWinProbabilities; 
     }
     
@@ -480,14 +481,76 @@ document.addEventListener("DOMContentLoaded", async function () {
                 .join(", ");
                 USWinStore[x] = USWinProb;
         }
-        d3.select("#probability").text("Win Probability: " + USWinStore[x]); 
+        d3.select("#probability").text("Win Probability: " + USWinStore[x]);
+        getHistData();
     }
     document.getElementById("xDropdown").value = 15;
-    initSim();
+    initSim(); 
+    
+    async function getHistData() {
+        let hArr = null;
+        let tArr = null;
+        fetch('https://raw.githubusercontent.com/seppukusoft/new-model/refs/heads/main/plot.json') 
+        .then(response => {
+            return response.json(); 
+        })
+        .then(data => {
+            hArr = data[0].harris.map(num => parseFloat(num).toFixed(2));
+            tArr = data[0].trump.map(num => parseFloat(num).toFixed(2));
+            hArr.unshift("\"" + USProbStore["Kamala Harris"].toFixed(2) + "\"");
+            tArr.unshift("\"" + USProbStore["Donald Trump"].toFixed(2) + "\"");
+            let dateArray = [];
+            let currentDate = new Date();
+            currentDate = new Date(currentDate.toLocaleString("en-US", { timeZone: "America/New_York" }));
+            for (let i = 0; i < hArr.length; i++) {
+                let year = currentDate.getFullYear();
+                let month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+                let day = currentDate.getDate().toString().padStart(2, '0');
+                dateArray.push(`${year}-${month}-${day}`);
+                currentDate.setDate(currentDate.getDate() - 2);
+            }
+            plotHistData(hArr, tArr, dateArray);
+        })
+        .catch(error => {
+            console.error("There was a problem with the fetch operation:", error);
+        });
+    }
+
+    function plotHistData (harrisArray, trumpArray, dateArray) {
+        var harris = {
+            x: dateArray,          
+            y: harrisArray,          
+            type: 'scatter',
+            line: {shape: 'spline'},
+            name: 'Harris'        
+          };
+                    
+          var trump = {          
+            x: dateArray,          
+            y: trumpArray,          
+            type: 'scatter',
+            line: {shape: 'spline'},
+            name: 'Trump'          
+          };    
+          
+          var layout = {
+            title: 'Win Probability (Last 60 Days)',
+            xaxis: {
+                title: 'Date'            
+              },            
+              yaxis: {            
+                title: 'Win Probability'            
+              }
+          };
+          
+          var plotData = [harris, trump];        
+          Plotly.newPlot('tester', plotData, layout);
+    }
+
+
 });
 
 document.addEventListener("DOMContentLoaded", function() {
-    // Function to remove the element whenever it is added
     function removeElement() {
         var element = document.querySelector('a[href="https://simplemaps.com"][title="For evaluation use only."]');
         if (element) {
@@ -495,7 +558,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // Create a MutationObserver to watch for changes in the DOM
     var observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.addedNodes.length) {
@@ -504,9 +566,6 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    // Start observing the document for any child node changes
     observer.observe(document.body, { childList: true, subtree: true });
-
-    // Try to remove the element in case it already exists
     removeElement();
 });
