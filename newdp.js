@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
     let data = null, weights = null, x = 15, y = 0; 
     let swingAdjustment = 0; 
-    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731, 88807, 88643, 88817, 88911, 88836];
+    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731, 88807, 88643, 88817, 88911, 88836, 88687];
     let bettingOdds = null, USProbStore = [];
     let pollCounts = {};
     let marginStore = {}, probabilityStore = {}, USWinStore = {}, plotStore = {};    
