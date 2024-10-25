@@ -230,7 +230,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
         const totalAdjustedPct = candidates.reduce((sum, candidate) => sum + candidate.adjustedPct, 0);
         candidates.forEach(candidate => {
-            candidate.adjustedPct = (candidate.adjustedPct / totalAdjustedPct) * 100; // Normalize
+            candidate.adjustedPct = (candidate.adjustedPct / totalAdjustedPct) * 100;
         });
 
         const results = candidates.reduce((acc, { name }) => ({ ...acc, [name]: 0 }), {});    
