@@ -8,6 +8,7 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"> 
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
     <html data-theme="light"></html>                 
     <script src="newdp.js"></script>
     <script type="text/javascript" src="mapdata.js"></script>		
@@ -19,7 +20,7 @@
         max-width: 750px;
         margin: auto;
         }
-        .map {
+        .map, .chart {
         max-width: 1500px;
         margin: auto;
         }
@@ -48,6 +49,7 @@
     <select id="stateDropdown">
         <option value="select">--Select--</option>
     </select>
+    <p id="note">(Note: Data and map may only update after selecting a state.) </p>
     <h2>Results</h2>
     <div id="resultsState">Data for: US</div>
     <br>
@@ -71,6 +73,9 @@
   <input type="number" id="swingInput" step="0.1" min="-10" max="10" value="0" />
   <p>(Note: Any adjustment will only correctly affect the EV count and map colors, not the numbers in the results section or state win probabilities on hover.)</p>
 </div>
+<br>
+<div id="tester" class = "chart" style="width:1200px;height:600px;"></div>
+<br> 
 <br>
 </body>
 </html>
