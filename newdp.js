@@ -72,9 +72,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
     }
 
-    async function getAndFilterData(url) {
-        if (data) {
-            return data;
+    async function getAndFilterData(url, daysBack) {
+        if (daysBack == 0) {
+            if (data) {
+                return data;
+            }
         }
         const response = await fetch(url);
         const csvText = await response.text();
@@ -82,7 +84,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         
         const now = new Date();
         const daysAgo = new Date();
-        daysAgo.setDate(now.getDate() - (x));
+        daysAgo.setDate((now.getDate() - daysBack) - (x));
 
         let timeData = initData.filter(d => {
             const pollDate = new Date(d.end_date); 
@@ -209,7 +211,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     
-    function calculateProbability(state, iterations = 100000) {
+    function calculateProbability(state, iterations = 10000) {
         const statePolls = data.polls.filter(poll => poll.state === state);
         const candidatesMap = new Map();
         statePolls.forEach(poll => {
@@ -325,7 +327,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         totalElectoralVotes[candidate] = (totalElectoralVotes[candidate] || 0) + stateElectoralVotes;
     }
 
-    function calculateElectionWinProbability(iterations = 1000) {
+    function calculateElectionWinProbability(iterations = 50000) {
         if (USWinStore[x]) {
             return USWinStore[x];
         }
@@ -338,7 +340,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             candidates.forEach(candidate => electoralVoteCount[candidate] = 0);
             Object.keys(electoralVotesMapping).forEach(state => {
                 const winProbabilities = { ...probabilityStore[state] };
-                winProbabilities["Donald Trump"] *= Math.sqrt(0.6/x)*8; 
+                winProbabilities["Donald Trump"] *= 1.6; 
                 const totalProbability = Object.values(winProbabilities).reduce((sum, prob) => sum + prob, 0);
                 candidates.forEach(candidate => winProbabilities[candidate] = (winProbabilities[candidate] / totalProbability) * 100);
     
@@ -368,7 +370,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         candidates.forEach(candidate => {
                 finalWinProbabilities[candidate] = (electionResults[candidate] / totalWins) * 100;
         });
-        USProbStore = finalWinProbabilities;
+        USProbStore[x] = finalWinProbabilities;
         return finalWinProbabilities; 
     }
     
@@ -468,7 +470,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById("swingInput").value = 0;
         await fetchPollsterWeights();
         await fetchBettingOdds();
-        data = await getAndFilterData(dataUrl);
+        data = await getAndFilterData(dataUrl, 0);
         let totalEVDisplay = calculateTotalElectoralVotes(1);
         mapRefresh();
         populateDropdown(data.polls);
@@ -483,22 +485,24 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
         d3.select("#probability").text("Win Probability: " + USWinStore[x]);
         getHistData();
+        // runHistCalc(dataUrl, 35);
     }
-    document.getElementById("xDropdown").value = 15;
+    document.getElementById("xDropdown").value = x;
     initSim(); 
     
     async function getHistData() {
         let hArr = null;
         let tArr = null;
+        let time = (x / 15) - 1;
         fetch('https://raw.githubusercontent.com/seppukusoft/new-model/refs/heads/main/plot.json') 
         .then(response => {
             return response.json(); 
         })
         .then(data => {
-            hArr = data[0].harris.map(num => parseFloat(num).toFixed(2));
-            tArr = data[0].trump.map(num => parseFloat(num).toFixed(2));
-            hArr.unshift("\"" + USProbStore["Kamala Harris"].toFixed(2) + "\"");
-            tArr.unshift("\"" + USProbStore["Donald Trump"].toFixed(2) + "\"");
+            hArr = data[time].harris.map(num => parseFloat(num).toFixed(2));
+            tArr = data[time].trump.map(num => parseFloat(num).toFixed(2));
+            hArr.unshift("\"" + USProbStore[x]["Kamala Harris"].toFixed(2) + "\"");
+            tArr.unshift("\"" + USProbStore[x]["Donald Trump"].toFixed(2) + "\"");
             let dateArray = [];
             let currentDate = new Date();
             currentDate = new Date(currentDate.toLocaleString("en-US", { timeZone: "America/New_York" }));
@@ -521,7 +525,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             x: dateArray,          
             y: harrisArray,          
             type: 'scatter',
-            line: {shape: 'spline'},
+            line: {shape: 'spline', color: 'blue'},
             name: 'Harris'        
           };
                     
@@ -529,24 +533,106 @@ document.addEventListener("DOMContentLoaded", async function () {
             x: dateArray,          
             y: trumpArray,          
             type: 'scatter',
-            line: {shape: 'spline'},
+            line: {shape: 'spline', color: 'red'},
             name: 'Trump'          
           };    
           
           var layout = {
-            title: 'Win Probability (Last 60 Days)',
+            title: 'Win Probability by Date',
+            font: {
+                family: 'Verdana',            
+                size: 14,            
+                color: '#000000'            
+              },
             xaxis: {
-                title: 'Date'            
+                title: 'Date' ,
+                linewidth: 2            
               },            
               yaxis: {            
-                title: 'Win Probability'            
+                title: 'Win Probability',
+                autorange: false, 
+                range:[0, 100],
+                linewidth: 2,
+                dtick: 10           
               }
           };
           
           var plotData = [harris, trump];        
-          Plotly.newPlot('tester', plotData, layout);
+          Plotly.newPlot('tester', plotData, layout, {displaylogo: false}, {responsive: true});
     }
 
+    // async function runHistCalc(dataUrl, y) {
+    //     let hArr = [];
+    //     let tArr = [];
+    //     let plotStore = [];
+    
+    //     for (let i = 1; i <= y; i++) {
+    //         const daysBack = i * 2;
+    //         const data = await getAndFilterData(dataUrl, daysBack);
+    //         console.log(calculateTotalElectoralVotes(1));
+    
+    //         const plotProb = Object.entries(plotWinProbability()).filter(([name, prob]) => prob > 0);
+    //         plotStore.push(plotProb);
+    //         console.log(`Plot data for ${daysBack} days ago:`, plotProb);
+    //     }
+    
+    //     plotStore.forEach((plot) => {
+    //         hArr.push(plot[0][1]);
+    //         tArr.push(plot[1][1]);
+    //     });
+    
+    //     console.log("Harris probabilities:", hArr);
+    //     console.log("Trump probabilities:", tArr);
+    //     return { hNum: hArr, tNum: tArr };
+    // }
+    
+    // function plotWinProbability(iterations = 50000) {
+    //     const electionResults = {};
+    //     const candidates = Object.keys(probabilityStore[Object.keys(probabilityStore)[0]] || {});
+    //     candidates.forEach(candidate => electionResults[candidate] = 0);
+    
+    //     for (let sim = 0; sim < iterations; sim++) {
+    //         const electoralVoteCount = {};
+    //         candidates.forEach(candidate => electoralVoteCount[candidate] = 0);
+    
+    //         for (let state in electoralVotesMapping) {
+    //             const winProbabilities = { ...probabilityStore[state] };
+    //             winProbabilities["Donald Trump"] *= 1.6;
+    
+    //             const totalProbability = Object.values(winProbabilities).reduce((sum, prob) => sum + prob, 0);
+    //             candidates.forEach(candidate => winProbabilities[candidate] = (winProbabilities[candidate] / totalProbability) * 100);
+    
+    //             let randomValue = Math.random() * 100;
+    //             let cumulativeProbability = 0;
+    //             let winner = candidates[0];
+    
+    //             for (let candidate of candidates) {
+    //                 cumulativeProbability += winProbabilities[candidate];
+    //                 if (randomValue <= cumulativeProbability) {
+    //                     winner = candidate;
+    //                     break;
+    //                 }
+    //             }
+    //             electoralVoteCount[winner] += electoralVotesMapping[state];
+    //         }
+    
+    //         for (let candidate of candidates) {
+    //             if (electoralVoteCount[candidate] >= 270) {
+    //                 electionResults[candidate] += 1;
+    //                 break;
+    //             }
+    //         }
+    //     }
+    
+    //     const totalWins = Object.values(electionResults).reduce((sum, wins) => sum + wins, 0);
+    //     const finalWinProbabilities = {};
+    //     candidates.forEach(candidate => {
+    //         finalWinProbabilities[candidate] = (electionResults[candidate] / totalWins) * 100;
+    //     });
+    
+    //     USProbStore[x] = finalWinProbabilities;
+    //     return finalWinProbabilities;
+    // }
 
 });
 
