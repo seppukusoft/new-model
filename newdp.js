@@ -398,6 +398,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     function displayResults(selectedState) {
+        if (selectedState === "US") {
+            d3.select("#probability").text("Win Probability: " + USWinStore[x]);
+            document.getElementById("voteShare").style.display = "none";
+            document.getElementById("margin").style.display = "none";
+            return;
+        }
         document.getElementById("voteShare").style.display = "block";
         document.getElementById("margin").style.display = "block";
         const stateData = data.polls.filter(d => d.state === selectedState);
@@ -453,8 +459,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         d3.select("#totalElectoralVotes").text(`Loading...`);
         x = document.getElementById("xDropdown").value;
         document.getElementById("stateDropdown").innerHTML = "";
-        document.getElementById("stateDropdown").value = "select";
-        d3.select("#stateDropdown").append("option").attr("value", "select").text("--Select--");
+        document.getElementById("stateDropdown").value = "US";
+        d3.select("#stateDropdown").append("option").attr("value", "US").text("US");
         data = null;
         probabilityStore = {};
         marginStore = {};
