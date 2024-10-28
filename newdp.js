@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", async function () {
     const dataUrl = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv";
     const weightsUrl = "https://raw.githubusercontent.com/seppukusoft/538-bias-marker/main/list.json";
-    const url = 'https://api.the-odds-api.com/v4/sports/politics_us_presidential_election_winner/odds?regions=us&oddsFormat=decimal&apiKey=3349c798ddb214a99aa7dbbd7c26f4db';
+    const url = 'https://api.the-odds-api.com/v4/sports/politics_us_presidential_election_winner/odds?regions=us&oddsFormat=decimal&apiKey=11ccde4b13434a75e81719ffb34a6b38';
     const electoralVotesMapping = {
       "Alabama": 9, "Alaska": 3, "Arizona": 11, "Arkansas": 6, "California": 54, "Colorado": 10, "Connecticut": 7, "Delaware": 3, "District of Columbia": 3,
       "Florida": 30, "Georgia": 16, "Hawaii": 4, "Idaho": 4, "Illinois": 19, "Indiana": 11, "Iowa": 6, "Kansas": 6, "Kentucky": 8, "Louisiana": 8, "Maine": 2,
