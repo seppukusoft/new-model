@@ -343,7 +343,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             candidates.forEach(candidate => electoralVoteCount[candidate] = 0);
             Object.keys(electoralVotesMapping).forEach(state => {
                 const winProbabilities = { ...probabilityStore[state] };
-                winProbabilities["Donald Trump"] *= 1.6; 
+                winProbabilities["Donald Trump"] *= 1.5; 
                 const totalProbability = Object.values(winProbabilities).reduce((sum, prob) => sum + prob, 0);
                 candidates.forEach(candidate => winProbabilities[candidate] = (winProbabilities[candidate] / totalProbability) * 100);
     
