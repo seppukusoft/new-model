@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
     let data = null, weights = null, x = 15, y = 0; 
     let swingAdjustment = 0; 
-    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731, 88807, 88643, 88817, 88911, 88836, 88687, 88808, 88876, 88972, 88981, 88940, 88981, 89011, 88990, 89039, 89038, 89048, 89027, 89101, 89099, 89017, 89029, 89045, 89040, 88953, 88950, 88836, 88948];
+    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731, 88807, 88643, 88817, 88911, 88836, 88687, 88808, 88876, 88972, 88981, 88940, 88981, 89011, 88990, 89039, 89038, 89048, 89027, 89101, 89099, 89017, 89029, 89045, 89040, 88953, 88950, 88836, 88948, 89139, 89146, 89060, 89047, 88842, ];
     let bettingOdds = null, USProbStore = [];
     let pollCounts = {};
     let marginStore = {}, probabilityStore = {}, USWinStore = {}, plotStore = {};    
@@ -283,13 +283,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     function getStateColor(margin) {
-        if (margin > 8) return "solidD";
-        if (margin > 4.5) return "likelyD";
+        if (margin > 9) return "solidD";
+        if (margin > 4) return "likelyD";
         if (margin > 2) return "leanD";
         if (margin > 0) return "tiltD";
         if (margin > -2) return "tiltR";
-        if (margin > -4.5) return "leanR";
-        if (margin > -8) return "likelyR";
+        if (margin > -4) return "leanR";
+        if (margin > -9) return "likelyR";
         return "solidR";
     }
 
@@ -330,7 +330,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         totalElectoralVotes[candidate] = (totalElectoralVotes[candidate] || 0) + stateElectoralVotes;
     }
 
-    function calculateElectionWinProbability(iterations = 50000) {
+    function calculateElectionWinProbability(iterations = 100000) {
         if (USWinStore[x]) {
             return USWinStore[x];
         }
