@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
     let data = null, weights = null, x = 15, y = 0; 
     let swingAdjustment = 0; 
-    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731, 88807, 88643, 88817, 88911, 88836, 88687, 88808, 88876, 88972, 88981, 88940, 88981, 89011, 88990, 89039, 89038];
+    const excludedPollIds = [88555, 88556, 88594, 88383, 88627, 88643, 88626, 88591, 88630, 88468, 88538, 88555, 88630, 88756, 88731, 88807, 88643, 88817, 88911, 88836, 88687, 88808, 88876, 88972, 88981, 88940, 88981, 89011, 88990, 89039, 89038, 89048, 89027, 89101, 89099, 89017, 89029, 89045, 89040, 88953, 88950, 88836, 88948];
     let bettingOdds = null, USProbStore = [];
     let pollCounts = {};
     let marginStore = {}, probabilityStore = {}, USWinStore = {}, plotStore = {};    
@@ -97,7 +97,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             d.candidate_name.toLowerCase() !== "gretchen whitmer" &&
             d.candidate_name.toLowerCase() !== "josh shapiro" &&
             d.candidate_name.toLowerCase() !== "shiva ayyadurai" &&
-	    d.pollster.toLowerCase() !== "activote" &&
+	        d.pollster.toLowerCase() !== "activote" &&
+	        d.pollster.toLowerCase() !== "trafalgar group" &&
+	        (!d.population || d.population.toLowerCase() !== "a") &&
             (!d.sponsor_candidate || d.sponsor_candidate.toLowerCase() !== "donald trump") &&
             (!d.sponsor_candidate || d.sponsor_candidate.toLowerCase() !== "kamala harris")
         );
@@ -105,7 +107,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         let filteredData = exData.map(poll => {
             const pollsterWeight = getWeight(poll.pollster, weights);
             const sponsorWeight = getWeight(poll.sponsor, weights);
-            let voterTypeWeight = poll.population && poll.population.toLowerCase() === 'lv' ? 1 : 0.5;
+            let voterTypeWeight = poll.population && poll.population.toLowerCase() === 'lv' ? 1 : 0.7;
             const sampleSizeWeight = Math.sqrt(poll.sample_size || 1) * 1.25;
             const finalWeight = Math.min(pollsterWeight, sponsorWeight) * voterTypeWeight * sampleSizeWeight;
             return { ...poll, weightedPct: poll.pct * finalWeight };
@@ -170,7 +172,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             probabilityStore[state] = calculateProbability(state);
             const stateData = data.polls.filter(d => d.state === state);
     
-            if (stateData.length > 5) {
+            if (stateData.length > 1) {
                 const candidates = d3.group(stateData, d => d.candidate_name);
                 if (!candidates || typeof candidates !== 'object') {
                     return;
@@ -401,6 +403,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     function displayResults(selectedState) {
         if (selectedState === "US") {
             d3.select("#probability").text("Win Probability: " + USWinStore[x]);
+            d3.select("#resultsState").text(`Data for: US`);
             document.getElementById("voteShare").style.display = "none";
             document.getElementById("margin").style.display = "none";
             return;
