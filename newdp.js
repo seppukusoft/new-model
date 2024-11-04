@@ -508,6 +508,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         const product = urlParams.get('theme')
         if (product == "dark") {
             document.documentElement.setAttribute("data-theme", "dark");
+            return "dark";
         } else {
             return;
         }
@@ -572,7 +573,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 title: 'Date' ,
                 linewidth: 2            
               },            
-              yaxis: {            
+            yaxis: {            
                 title: 'Win Probability',
                 autorange: false, 
                 range:[0, 100],
@@ -580,6 +581,40 @@ document.addEventListener("DOMContentLoaded", async function () {
                 dtick: 10           
               }
           };
+          if (changeMode() == "dark") {
+            harris = {
+                x: dateArray,          
+                y: harrisArray,          
+                type: 'scatter',
+                line: {shape: 'spline', color: 'light blue'},
+                name: 'Harris'        
+              };
+
+            layout = {
+                title: 'Win Probability by Date',
+                font: {
+                    family: 'Verdana',            
+                    size: 14,            
+                    color: '#ffffff'            
+                  },
+                xaxis: {
+                    title: 'Date' ,
+                    gridcolor: '#ffffff',
+                    linewidth: 2            
+                  },            
+                yaxis: {            
+                    title: 'Win Probability',
+                    autorange: false, 
+                    range:[0, 100],
+                    linewidth: 2,
+                    gridcolor: '#ffffff',
+                    zerolinecolor: '#ffffff',
+                    dtick: 10           
+                  },
+                paper_bgcolor:  '#13171f',
+                plot_bgcolor: '#13171f'
+              };
+          }
           
           var plotData = [harris, trump];        
           Plotly.newPlot('tester', plotData, layout, {displaylogo: false}, {responsive: true});
