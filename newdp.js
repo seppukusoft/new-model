@@ -286,7 +286,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (margin > 9) return "solidD";
         if (margin > 4) return "likelyD";
         if (margin > 2) return "leanD";
-        if (margin > 0) return "tiltD";
+        if (margin >= 0) return "tiltD";
         if (margin > -2) return "tiltR";
         if (margin > -4) return "leanR";
         if (margin > -9) return "likelyR";
